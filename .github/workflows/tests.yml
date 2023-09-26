@@ -45,109 +45,116 @@ jobs:
         run: |
           pip install poetry
           poetry install
+      - name: Run ATS
+        uses: codecov/codecov-ats@v0
+        env:
+          CODECOV_STATIC_TOKEN: ${{ secrets.CODECOV_STATIC_TOKEN }}
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
       - name: Run tests
         run: |
-          poetry run pytest --exitfirst --reruns 2 --disable-warnings --log-cli-level=DEBUG --cov-report xml:cov.xml --cov=bbot .
-      - name: Upload Code Coverage
-        uses: codecov/codecov-action@v3
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./cov.xml
+          poetry run pytest --cov bbot ${{ env.CODECOV_ATS_TESTS }}
+      - name: Upload coverage to Codecov
+          uses: codecov/codecov-action@v4-beta
+          env:
+            CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+          with:
+            flags: smart-tests
+            plugins: pycoverage,compress-pycoverage
           verbose: true
-  update_docs:
-    needs: test
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-        with:
-          token: ${{ secrets.BBOT_DOCS_UPDATER_PAT }}
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: "3.x"
-      - name: Install dependencies
-        run: |
-          pip install poetry
-          poetry install
-      - name: Generate docs
-        run: |
-          poetry run bbot/scripts/docs.py
-      - name: Commit docs
-        uses: EndBug/add-and-commit@v9
-        continue-on-error: true
-        with:
-          add: "*.md"
-          author_name: "BBOT Docs Autopublish"
-          author_email: info@blacklanternsecurity.com
-          message: "Refresh module docs"
-  publish_docs:
-    needs: update_docs
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.event.pull_request.base.ref == 'dev'
-    steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-python@v4
-        with:
-          python-version: "3.x"
-      - run: echo "cache_id=$(date --utc '+%V')" >> $GITHUB_ENV
-      - uses: actions/cache@v3
-        with:
-          key: mkdocs-material-${{ env.cache_id }}
-          path: .cache
-          restore-keys: |
-            mkdocs-material-
-      - run: pip install mkdocs-material mkdocs-extra-sass-plugin livereload
-      - run: mkdocs gh-deploy --force
-  publish_code:
-    needs: update_docs
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request_target' && github.event.pull_request.merged == true && (github.event.pull_request.base.ref == 'dev' || github.event.pull_request.base.ref == 'stable')
-    continue-on-error: true
-    steps:
-      - uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: "3.x"
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install poetry build
-          poetry self add "poetry-dynamic-versioning[plugin]"
-      - name: Build Pypi package
-        if: github.ref == 'refs/heads/stable' || github.ref == 'refs/heads/dev'
-        run: python -m build
-      - name: Publish Pypi package
-        if: github.ref == 'refs/heads/stable' || github.ref == 'refs/heads/dev'
-        uses: pypa/gh-action-pypi-publish@release/v1.5
-        with:
-          password: ${{ secrets.PYPI_API_TOKEN }}
-      - name: Get BBOT version
-        id: version
-        run: |
-          echo "::set-output name=BBOT_VERSION::$(poetry version | cut -d' ' -f2 | tr -d v)"
-      - name: Publish to Docker Hub (dev)
-        if: github.ref == 'refs/heads/dev'
-        uses: elgohr/Publish-Docker-Github-Action@v5
-        with:
-          name: blacklanternsecurity/bbot
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
-          tags: "latest,dev,${{ steps.version.outputs.BBOT_VERSION }}"
-      - name: Publish to Docker Hub (stable)
-        if: github.ref == 'refs/heads/stable'
-        uses: elgohr/Publish-Docker-Github-Action@v5
-        with:
-          name: blacklanternsecurity/bbot
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
-          tags: "stable,${{ steps.version.outputs.BBOT_VERSION }}"
-      - name: Docker Hub Description
-        if: github.ref == 'refs/heads/dev'
-        uses: peter-evans/dockerhub-description@v3
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
-          repository: blacklanternsecurity/bbot
+  # update_docs:
+  #   needs: test
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v3
+  #       with:
+  #         token: ${{ secrets.BBOT_DOCS_UPDATER_PAT }}
+  #     - name: Set up Python
+  #       uses: actions/setup-python@v4
+  #       with:
+  #         python-version: "3.x"
+  #     - name: Install dependencies
+  #       run: |
+  #         pip install poetry
+  #         poetry install
+  #     - name: Generate docs
+  #       run: |
+  #         poetry run bbot/scripts/docs.py
+  #     - name: Commit docs
+  #       uses: EndBug/add-and-commit@v9
+  #       continue-on-error: true
+  #       with:
+  #         add: "*.md"
+  #         author_name: "BBOT Docs Autopublish"
+  #         author_email: info@blacklanternsecurity.com
+  #         message: "Refresh module docs"
+  # publish_docs:
+  #   needs: update_docs
+  #   runs-on: ubuntu-latest
+  #   if: github.event_name == 'push' && github.event.pull_request.base.ref == 'dev'
+  #   steps:
+  #     - uses: actions/checkout@v3
+  #     - uses: actions/setup-python@v4
+  #       with:
+  #         python-version: "3.x"
+  #     - run: echo "cache_id=$(date --utc '+%V')" >> $GITHUB_ENV
+  #     - uses: actions/cache@v3
+  #       with:
+  #         key: mkdocs-material-${{ env.cache_id }}
+  #         path: .cache
+  #         restore-keys: |
+  #           mkdocs-material-
+  #     - run: pip install mkdocs-material mkdocs-extra-sass-plugin livereload
+  #     - run: mkdocs gh-deploy --force
+  # publish_code:
+  #   needs: update_docs
+  #   runs-on: ubuntu-latest
+  #   if: github.event_name == 'pull_request_target' && github.event.pull_request.merged == true && (github.event.pull_request.base.ref == 'dev' || github.event.pull_request.base.ref == 'stable')
+  #   continue-on-error: true
+  #   steps:
+  #     - uses: actions/checkout@v3
+  #       with:
+  #         fetch-depth: 0
+  #     - name: Set up Python
+  #       uses: actions/setup-python@v4
+  #       with:
+  #         python-version: "3.x"
+  #     - name: Install dependencies
+  #       run: |
+  #         python -m pip install --upgrade pip
+  #         pip install poetry build
+  #         poetry self add "poetry-dynamic-versioning[plugin]"
+  #     - name: Build Pypi package
+  #       if: github.ref == 'refs/heads/stable' || github.ref == 'refs/heads/dev'
+  #       run: python -m build
+  #     - name: Publish Pypi package
+  #       if: github.ref == 'refs/heads/stable' || github.ref == 'refs/heads/dev'
+  #       uses: pypa/gh-action-pypi-publish@release/v1.5
+  #       with:
+  #         password: ${{ secrets.PYPI_API_TOKEN }}
+  #     - name: Get BBOT version
+  #       id: version
+  #       run: |
+  #         echo "::set-output name=BBOT_VERSION::$(poetry version | cut -d' ' -f2 | tr -d v)"
+  #     - name: Publish to Docker Hub (dev)
+  #       if: github.ref == 'refs/heads/dev'
+  #       uses: elgohr/Publish-Docker-Github-Action@v5
+  #       with:
+  #         name: blacklanternsecurity/bbot
+  #         username: ${{ secrets.DOCKER_USERNAME }}
+  #         password: ${{ secrets.DOCKER_PASSWORD }}
+  #         tags: "latest,dev,${{ steps.version.outputs.BBOT_VERSION }}"
+  #     - name: Publish to Docker Hub (stable)
+  #       if: github.ref == 'refs/heads/stable'
+  #       uses: elgohr/Publish-Docker-Github-Action@v5
+  #       with:
+  #         name: blacklanternsecurity/bbot
+  #         username: ${{ secrets.DOCKER_USERNAME }}
+  #         password: ${{ secrets.DOCKER_PASSWORD }}
+  #         tags: "stable,${{ steps.version.outputs.BBOT_VERSION }}"
+  #     - name: Docker Hub Description
+  #       if: github.ref == 'refs/heads/dev'
+  #       uses: peter-evans/dockerhub-description@v3
+  #       with:
+  #         username: ${{ secrets.DOCKER_USERNAME }}
+  #         password: ${{ secrets.DOCKER_PASSWORD }}
+  #         repository: blacklanternsecurity/bbot
