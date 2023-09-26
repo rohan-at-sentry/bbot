@@ -52,7 +52,7 @@ jobs:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
       - name: Run tests
         run: |
-          poetry run pytest --cov bbot ${{ env.CODECOV_ATS_TESTS }}
+         poetry run pytest --exitfirst --reruns 2 --disable-warnings --log-cli-level=DEBUG --cov-report xml:cov.xml --cov=bbot . ${{ env.CODECOV_ATS_TESTS }}
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4-beta
         env:
