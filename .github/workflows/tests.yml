@@ -54,13 +54,13 @@ jobs:
         run: |
           poetry run pytest --cov bbot ${{ env.CODECOV_ATS_TESTS }}
       - name: Upload coverage to Codecov
-          uses: codecov/codecov-action@v4-beta
-          env:
-            CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-          with:
-            flags: smart-tests
-            plugins: pycoverage,compress-pycoverage
-          verbose: true
+        uses: codecov/codecov-action@v4-beta
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        with:
+          flags: smart-tests
+          plugins: pycoverage,compress-pycoverage
+        verbose: true
   # update_docs:
   #   needs: test
   #   runs-on: ubuntu-latest
