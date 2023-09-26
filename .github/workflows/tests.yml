@@ -60,7 +60,7 @@ jobs:
         with:
           flags: smart-tests
           plugins: pycoverage,compress-pycoverage
-        verbose: true
+        #verbose: true
   # update_docs:
   #   needs: test
   #   runs-on: ubuntu-latest
